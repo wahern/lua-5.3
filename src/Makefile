@@ -195,8 +195,8 @@ lzio.o: lzio.c lprefix.h lua.h luaconf.h llimits.h lmem.h lstate.h \
  lobject.h ltm.h lzio.h
 
 luaconf.h: luaconf.h.in luaconf.sh
-	luaconf.sh < luaconf.h.in >| luaconf.h.tmp
-	[ ! -f luaconf.h ] || mv -f luaconf.h luaconf.h-$(date +"%Y%m%dT%H%M%S")
+	./luaconf.sh < luaconf.h.in >| luaconf.h.tmp
+	[ ! -f luaconf.h ] || mv -f luaconf.h luaconf.h-$$(date +"%Y%m%dT%H%M%S")
 	mv -f luaconf.h.tmp luaconf.h
 
 # (end of Makefile)
