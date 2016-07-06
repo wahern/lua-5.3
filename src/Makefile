@@ -38,7 +38,7 @@ BASE_O= $(CORE_O) $(LIB_O) $(MYOBJS)
 
 LUA_T=	lua
 LUA_O=	lua.o
-LUA_H=  luaconf.h
+LUA_H=	luaconf.h
 
 LUAC_T=	luac
 LUAC_O=	luac.o
