@@ -50,6 +50,81 @@ slash_required() {
 	return 1
 }
 
+# unescape backslash-escaped string
+unescape() {
+	IFS=
+	eval "${1}=\"\$(printf \"%bx\" "\${${1}}")\""
+	eval "${1}=\${${1}%x}"
+	unset IFS
+}
+
+# determine if string was word-split (trailing backslash)
+iswordsplit() {
+	iswordsplit_N=0
+	iswordsplit_S="${1}"
+	while [ "${iswordsplit_S%\\}" != "${iswordsplit_S}" ]; do
+		iswordsplit_S="${iswordsplit_S%\\}"
+		iswordsplit_N=$((${iswordsplit_N} + 1))
+	done
+
+	# was word-split if odd number of trailing backslashes
+	[ $((${iswordsplit_N} % 2)) -eq 1 ];
+}
+
+# read MAKEFLAGS macro NAME and assign to VAR, returning true if macro was
+# defined, false otherwise
+import_makeflag() {
+	import_makeflag_NAME="${1}"
+	import_makeflag_VAR="${2:-${1}}"
+
+	IFS=" " # exclude tab so we don't confuse with space when unescaping
+	set -- ${MAKEFLAGS:-}
+	unset IFS
+
+	while [ $# -gt 0 ]; do
+		# skip non-K=V pairs
+		if [ "${1#*=}" = "${1}" ]; then
+			shift 1
+			continue
+		fi
+
+		# load K=V pair
+		import_makeflag_K="${1%%=*}"
+		import_makeflag_V="${1#*=}"
+
+		shift 1
+
+		# keep reading if V is word-split
+		while iswordsplit "${import_makeflag_V}"; do
+			[ $# -gt 0 ] || break;
+			import_makeflag_V="${import_makeflag_V%\\}"
+			import_makeflag_V="${import_makeflag_V} ${1}"
+			shift 1
+		done
+
+		# skip if not the macro we're looking for
+		[ "${import_makeflag_NAME}" = "${import_makeflag_K}" ] || continue
+
+		# decode backslash-escaping
+		unescape import_makeflag_V
+
+		eval "${import_makeflag_VAR}=\${import_makeflag_V}"
+
+		return 0
+	done
+
+	# not found
+	return 1
+}
+
+# for each variable specified, call import_makeflag unless already defined
+import_makeflags() {
+	for import_makeflags_K; do
+		! isset "$import_makeflags_K" || continue
+		import_makeflag "$import_makeflags_K" || :
+	done
+}
+
 # process -D option
 define() {
 	IFS="="
@@ -120,12 +195,14 @@ if [ $# -gt 0 ]; then
 fi
 
 # default Makefile path variables
+import_makeflags V INSTALL_TOP INSTALL_LMOD INSTALL_CMOD
 : ${V:=5.3}
 : ${INSTALL_TOP:=/usr/local}
 : ${INSTALL_LMOD:=${INSTALL_TOP}/share/lua/${V}}
 : ${INSTALL_CMOD:=${INSTALL_TOP}/lib/lua/${V}}
 
 # default luaconf.h path variables
+import_makeflags LUA_ROOT LUA_LDIR LUA_CDIR
 : ${LUA_ROOT:=${INSTALL_TOP}}
 : ${LUA_LDIR:=${INSTALL_LMOD}}
 : ${LUA_CDIR:=${INSTALL_CMOD}}
